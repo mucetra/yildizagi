@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Yıldız Ağı</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600;700&family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script type="importmap">{"imports":{"react":"https://esm.sh/react@18.2.0","react-dom/client":"https://esm.sh/react-dom@18.2.0/client","lucide-react":"https://esm.sh/lucide-react@0.263.1"}}</script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0;padding:0;overflow:hidden;width:100%;height:100%;background:#010108;color:white;font-family:'Inter',sans-serif;-webkit-tap-highlight-color:transparent}
+  .f-cinzel{font-family:'Cinzel',serif}
+  .f-cinzel-d{font-family:'Cinzel Decorative',serif}
+  .f-mono{font-family:'Space Mono',monospace}
+
+/* ── INPUT FIX ── */
+input{color:white!important;-webkit-text-fill-color:white!important;caret-color:white}
+input::placeholder{color:rgba(255,255,255,0.25)!important;-webkit-text-fill-color:rgba(255,255,255,0.25)!important}
+input:-webkit-autofill,input:-webkit-autofill:focus{
+-webkit-text-fill-color:white!important;
+-webkit-box-shadow:0 0 0 1000px #0d0d1a inset!important;
+transition:background-color 5000s ease-in-out 0s
+}
+
+/* ── ANIMATIONS ── */
+@keyframes twinkle{0%,100%{opacity:.06;transform:scale(0.8)}50%{opacity:.95;transform:scale(1.1)}}
+@keyframes shoot{0%{opacity:0;transform:translateX(0) translateY(0)}8%{opacity:1}100%{opacity:0;transform:translateX(-110vw) translateY(110vh)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}
+@keyframes ringPulse{0%,100%{opacity:0.4;transform:scale(0.9)}50%{opacity:0.9;transform:scale(1.1)}}
+@keyframes spinSlow{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes hintFly{0%{opacity:0;transform:translate(0,0) scale(.4)}12%{opacity:1;transform:translate(calc(var(–tx)*.12),calc(var(–ty)*.12)) scale(1.1)}90%{opacity:.7}100%{opacity:0;transform:translate(var(–tx),var(–ty)) scale(.15)}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+@keyframes constellationReveal{0%{stroke-dashoffset:var(–len);opacity:0}30%{opacity:1}100%{stroke-dashoffset:0;opacity:1}}
+@keyframes starBurst{0%{transform:scale(0);opacity:1}60%{transform:scale(1.8);opacity:.8}100%{transform:scale(3);opacity:0}}
+@keyframes nebulaFloat{0%,100%{transform:scale(1) translate(0,0);opacity:.15}50%{transform:scale(1.08) translate(8px,-5px);opacity:.22}}
+@keyframes nodePulse{0%,100%{box-shadow:0 0 15px rgba(99,102,241,.2)}50%{box-shadow:0 0 40px rgba(99,102,241,.6),0 0 80px rgba(99,102,241,.2)}}
+
+.anim-fade-up{animation:fadeUp .35s ease-out forwards}
+.anim-shake{animation:shake .3s cubic-bezier(.36,.07,.19,.97) both}
+.spin-slow{animation:spinSlow 14s linear infinite}
+.node-pulse{animation:nodePulse 2s ease-in-out infinite}
+
+/* ── GLASS ── */
+.glass{background:rgba(255,255,255,.04);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.09)}
+.glass-dark{background:rgba(1,1,10,.92);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,.08)}
+.glass-input{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:white}
+
+/* ── SCROLLBAR ── */
+.thin-scroll::-webkit-scrollbar{width:5px}
+.thin-scroll::-webkit-scrollbar-track{background:rgba(255,255,255,.02)}
+.thin-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px}
+
+/* ── KEYBOARD ── */
+.kb-key{background:rgba(255,255,255,.06);border:1px solid rgba(99,102,241,.2);color:white;font-family:‘Space Mono’,monospace;font-weight:700;display:flex;align-items:center;justify-content:center;border-radius:8px;transition:all .1s;cursor:pointer;user-select:none}
+.kb-key:active{transform:scale(.85);background:rgba(99,102,241,.35)}
+
+/* ── DIFFICULTY ── */
+.d-kolay{color:#4ade80;background:rgba(74,222,128,.09);border-color:rgba(74,222,128,.3)}
+.d-orta{color:#818cf8;background:rgba(129,140,248,.09);border-color:rgba(129,140,248,.3)}
+.d-zor{color:#f87171;background:rgba(248,113,113,.09);border-color:rgba(248,113,113,.3)}
+
+/* ── STAR NODE ── */
+.star-node{transition:transform .4s cubic-bezier(.34,1.56,.64,1),opacity .4s}
+</style>
+
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-type="module">
+import React,{useState,useEffect,useRef,useCallback,useMemo} from 'react';
+import{createRoot}from 'react-dom/client';
+import{Star,Sparkles,BrainCircuit,Play,ArrowRight,ArrowLeft,RefreshCcw,X,Eye,Lock,Home,Map,Volume2,VolumeX,Music,Music2,AlertTriangle,LogOut,Delete,Lightbulb,Zap,Info,User,Grid,Loader2,MessageCircle,BookOpen,ChevronRight}from 'lucide-react';
+
+// ═══════════════════════════════════════════════
+// CONSTELLATION DATA — Her şekil hem düğüm pozisyonlarını
+// hem de hangi yıldızların birbirine bağlı olduğunu içerir
+// ═══════════════════════════════════════════════
+const CONST_DATA = {
+5:[
+{name:“KASSİOPEİA”,latin:“Cassiopeia”,myth:“Etiyopya kraliçesi, güzelliğiyle övündüğü için gökyüzüne yerleştirildi.”,
+fact:“W harfi şeklindeki bu takımyıldız, Kuzey Kutup Yıldızı’nın karşısında yer alır ve yıl boyunca görünür kalır.”,
+stars:[{x:10,y:55,n:“ε”},{x:28,y:22,n:“δ”},{x:50,y:55,n:“γ”},{x:72,y:22,n:“α”},{x:90,y:55,n:“β”}],
+lines:[[0,1],[1,2],[2,3],[3,4]]},
+{name:“GÜNEY HAÇI”,latin:“Crux”,myth:“Eski denizciler Güney Yarımküre’de kaybolduklarında bu dört yıldıza bakarak yön bulurdular.”,
+fact:“Gökyüzünün en küçük ama en belirgin takımyıldızıdır. Avustralya, Yeni Zelanda ve Brezilya bayraklarında yer alır.”,
+stars:[{x:50,y:12,n:“α”},{x:24,y:50,n:“γ”},{x:50,y:88,n:“β”},{x:76,y:50,n:“δ”},{x:50,y:50,n:“ε”}],
+lines:[[0,4],[1,4],[2,4],[3,4]]},
+{name:“DELFİN”,latin:“Delphinus”,myth:“Deniz tanrısı Poseidon’a evlilik teklifini iletmesi için gönderilen bu yunus, ödül olarak yıldızlara katıldı.”,
+fact:“Beş yıldızı ‘Job’s Coffin’ (Eyüp’ün Tabut) adıyla da bilinir. Yaz gökyüzünde küçük ama sevimli bir şekil oluşturur.”,
+stars:[{x:50,y:15,n:“α”},{x:72,y:40,n:“β”},{x:65,y:65,n:“γ”},{x:35,y:65,n:“δ”},{x:28,y:40,n:“ε”}],
+lines:[[0,1],[1,2],[2,3],[3,4],[4,0]]}
+],
+6:[
+{name:“ORİON”,latin:“Orion”,myth:“Mitolojide büyük avcı Orion, tanrıça Artemis ile aşk yaşadı. Kardeşinin hatasıyla öldürüldü ve gökyüzüne taşındı.”,
+fact:“Üç sıralı ‘Orion Kemeri’ yıldızları, çıplak gözle en kolay tanınan yıldız dizisdir. Yılın en parlak takımyıldızlarından biridir.”,
+stars:[{x:28,y:18,n:“Betelgeuse”},{x:72,y:18,n:“Bellatrix”},{x:32,y:52,n:“Mintaka”},{x:50,y:57,n:“Alnilam”},{x:68,y:52,n:“Alnitak”},{x:72,y:85,n:“Rigel”}],
+lines:[[0,2],[1,4],[2,3],[3,4],[0,1],[4,5],[0,5]]},
+{name:“GEMİNİ”,latin:“Gemini”,myth:“Castor ve Pollux, Zeus’un oğullarıdır. Pollux ölümsüz, Castor ölümlüydü. Pollux kardeşiyle zamanını paylaşmak için bu isteği Zeus’tan aldı.”,
+fact:“Güneş sistemi içinden bakıldığında, bu yöne doğru gidersek yıldızlararası uzaya en hızlı çıkabiliriz.”,
+stars:[{x:20,y:20,n:“Castor”},{x:38,y:20,n:“Pollux”},{x:22,y:48,n:“ε”},{x:38,y:52,n:“μ”},{x:24,y:76,n:“η”},{x:42,y:80,n:“ξ”}],
+lines:[[0,2],[1,3],[2,4],[3,5],[0,1],[2,3]]}
+],
+7:[
+{name:“BÜYÜK AYI”,latin:“Ursa Major”,myth:“Zeus’un sevgilisi Callisto, Hera’nın kıskançlığıyla ayıya dönüştürüldü. Zeus onu acımasız avcılardan korumak için gökyüzüne yerleştirdi.”,
+fact:“Yedi parlak yıldızı ‘Büyük Kepçe’yi oluşturur. Kepçenin ön iki yıldızını uzatırsanız Kutup Yıldızı’nı bulursunuz.”,
+stars:[{x:10,y:66,n:“Dubhe”},{x:24,y:54,n:“Merak”},{x:38,y:57,n:“Phecda”},{x:52,y:48,n:“Megrez”},{x:64,y:38,n:“Alioth”},{x:76,y:28,n:“Mizar”},{x:90,y:18,n:“Alkaid”}],
+lines:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[0,3]]},
+{name:“KÜÇÜK AYI”,latin:“Ursa Minor”,myth:“Zeus’un koruma altına aldığı kutsal bir ayı olduğu söylenir. Kutup Yıldızı’nın kuyruğun ucunda olması tesadüf değil, efsanevi bir işarettir.”,
+fact:“Kutup Yıldızı (Polaris) bu takımyıldızın ucundadır. Dünya’nın kuzey kutup ekseni neredeyse tam ona yönelir. Denizciler yüzyıllarca ona güvendi.”,
+stars:[{x:50,y:12,n:“Polaris”},{x:40,y:28,n:“Yildun”},{x:55,y:42,n:“ε”},{x:68,y:36,n:“ζ”},{x:62,y:56,n:“η”},{x:36,y:66,n:“Kochab”},{x:26,y:56,n:“Pherkad”}],
+lines:[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[5,4]]}
+]
+};
+
+// ═══════════════════════════════════════════════
+// SEVİYELER — Eğitici, Türkçe kavram zincirleri
+// ═══════════════════════════════════════════════
+const BASE_LEVELS = [
+{id:1,diff:“kolay”,theme:“Kozmik Ateş”,      start:“ATEŞ”,     end:“YILDIZ”,    chain:[“ALEV”,“IŞIK”,“GÜNEŞ”],     hints:[“Ateşin danseden dili”,“Gözlerimize ulaşan enerji”,“En yakın yıldız”]},
+{id:2,diff:“kolay”,theme:“Bilginin Kaynağı”, start:“KALEM”,    end:“BİLGİ”,     chain:[“KAĞIT”,“KİTAP”,“OKUL”],    hints:[“Kalemin dokunduğu yüzey”,“Sayfaların ciltlenmiş hali”,“Öğrenmenin kutsal mekanı”]},
+{id:3,diff:“kolay”,theme:“Yaşam Döngüsü”,    start:“TOHUM”,    end:“NEFES”,     chain:[“AĞAÇ”,“YAPRAK”,“OKSİJEN”], hints:[“Tohumun onlarca yıl sonraki hali”,“Fotosentez atölyesi”,“Hayat için gerekli gaz”]},
+{id:4,diff:“kolay”,theme:“Su Döngüsü”,        start:“DAĞ”,      end:“DENİZ”,     chain:[“ZİRVE”,“BULUT”,“YAĞMUR”],  hints:[“En yüksek nokta”,“Zirveden yükselen buhar”,“Bulutun dünyaya hediyesi”]},
+{id:5,diff:“kolay”,theme:“Işıktan Hayata”,    start:“GÜNEŞ”,    end:“YAŞAM”,     chain:[“IŞIN”,“TOPRAK”,“BİTKİ”],   hints:[“Güneşten gelen enerji demeti”,“Yaşamın zemini”,“Işın ve toprağın buluşması”]},
+{id:6,diff:“orta”, theme:“Dans ve Acı”,       start:“KAKTÜS”,   end:“BALE”,      chain:[“DİKEN”,“BATMAK”,“UÇ”,“PARMAK”],  hints:[“Bitkinin savunma silahı”,“Sivri cismin eylemi”,“Her şeyin keskin noktası”,“El ve ayak uzvu”]},
+{id:7,diff:“orta”, theme:“Karanlık Perdesi”,  start:“GECE”,     end:“SİNEMA”,    chain:[“KARANLIK”,“ODA”,“PERDE”,“FİLM”],  hints:[“Işık yokluğu”,“Dört duvarlı mekan”,“Odanın ışık engelleyicisi”,“Perdede doğan dünya”]},
+{id:8,diff:“orta”, theme:“Doğanın Kağıdı”,    start:“KİTAP”,    end:“ORMAN”,     chain:[“KAĞIT”,“AĞAÇ”,“YAPRAK”,“DOĞA”],  hints:[“Sayfaların hammaddesi”,“Kağıdın kaynağı”,“Dalın yeşil uzvu”,“Canlıların büyük evi”]},
+{id:9,diff:“orta”, theme:“Sayıların Müziği”,  start:“MÜZİK”,    end:“MATEMATİK”, chain:[“NOTA”,“RİTİM”,“SAYI”,“DENKLEM”],  hints:[“Müziğin temel sembolü”,“Notaların zamansal düzeni”,“Matematiğin alfabesi”,“Sayıların eşitlik dili”]},
+{id:10,diff:“orta”,theme:“Zamanın Kumu”,      start:“ZAMAN”,    end:“ÇÖL”,       chain:[“SAAT”,“CAM”,“PLAJ”,“KUM”],       hints:[“Zamanı ölçen nesne”,“Kum saatinin şeffaf gövdesi”,“Kumun denizle buluşması”,“Çölün temel maddesi”]},
+{id:11,diff:“orta”,theme:“Işık ve Ses”,       start:“IŞIK”,     end:“MÜZİK”,     chain:[“RENK”,“TİTREŞİM”,“SES”,“RİTİM”],hints:[“Işığın prizmadaki halisi”,“Her renk bir frekanstır”,“Titreşimin kulaktaki karşılığı”,“Sesin zamansal deseni”]},
+{id:12,diff:“orta”,theme:“Kalıtım”,           start:“DNA”,      end:“MİRAS”,     chain:[“GEN”,“HÜCRE”,“YAŞAM”,“SOY”],    hints:[“Kalıtımın temel birimi”,“Genlerin yaşadığı mekan”,“Hücrelerin büyük amacı”,“Yaşamın aile bağı”]},
+{id:13,diff:“zor”, theme:“Kozmik Düzen”,      start:“KAOS”,     end:“KOZMOS”,    chain:[“KARMAŞA”,“DÜZEN”,“SİSTEM”,“EVREN”,“KAİNAT”],hints:[“Kaosun Türkçesi”,“Karmaşanın zıddı”,“Düzenin büyük formu”,“Sistemlerin sistemi”,“Evrenin diğer adı”]},
+{id:14,diff:“zor”, theme:“Felsefenin Doğuşu”, start:“GÖZ”,     end:“FELSEFE”,   chain:[“GÖRMEK”,“GERÇEK”,“SORGU”,“AKIL”,“BİLGELİK”],hints:[“Gözün temel eylemi”,“Görmenin ötesindeki”,“Gerçeği sorgulayan tutum”,“Sorgunun yöntemi”,“Aklın doruk noktası”]},
+{id:15,diff:“zor”, theme:“İnsanlık”,          start:“KALP”,     end:“MEDENİYET”, chain:[“SEVGİ”,“BAĞLANTI”,“TOPLUM”,“KÜLTÜR”,“TARİH”],hints:[“Kalbin ürettiği”,“Sevginin yarattığı köprü”,“Bağlantının büyük formu”,“Toplumun yaşayan ruhu”,“Kültürlerin birikimi”]},
+];
+
+// ═══════════════════════════════════════════════
+// CLAUDE API
+// ═══════════════════════════════════════════════
+const callClaude=async(prompt,maxT=500)=>{
+const r=await fetch(“https://api.anthropic.com/v1/messages”,{
+method:“POST”,
+headers:{“Content-Type”:“application/json”,“anthropic-version”:“2023-06-01”,“anthropic-dangerous-direct-browser-access”:“true”},
+body:JSON.stringify({model:“claude-sonnet-4-20250514”,max_tokens:maxT,messages:[{role:“user”,content:prompt}]})
+});
+if(!r.ok) throw new Error(`API ${r.status}`);
+const d=await r.json();
+return d.content?.find(b=>b.type===“text”)?.text?.trim()||””;
+};
+
+const generateLevel=async(num)=>{
+const diff=num<=5?“kolay”:num<=30?“orta”:“zor”;
+const sz=num<=5?3:num<=30?4:5;
+const eg=Array(sz).fill(“KELİME”).join(’”,”’);
+const ih=Array(sz).fill(“İpucu”).join(’”,”’);
+const txt=await callClaude(
+`Türkçe kelime zinciri bulmacası SEVİYE ${num} oluştur. SADECE JSON döndür, başka hiçbir şey yazma: {"startWord":"X","endWord":"Y","chain":["${eg}"],"hints":["${ih}"],"theme":"Tema"} KURALLAR: Türkçe büyük harf, yaygın kelimeler, zorluk:${diff}, tam ${sz} ara kelime, bitişik kelimeler arasında açık kavramsal bağ, ipuçları cevabı vermeden yönlendirici.`,800);
+const parsed=JSON.parse(txt.replace(/`json|`/g,””).trim());
+return{…parsed,id:num,diff};
+};
+
+const getAIHint=async(target,baseHint,prev,next)=>
+await callClaude(`Türkçe kelime bulmacası ipucu ver. Gizli kelime: "${target}" | Önceki: "${prev}" → ? → Sonraki: "${next}" Temel ipucu: "${baseHint}" Kelimeyi SÖYLEMEDEN şiirsel, sezgisel 1-2 cümlelik farklı bir ipucu yaz. Sadece ipucu metnini yaz.`,120);
+
+const explainChain=async(start,end,chain)=>{
+const path=[start,…chain,end].join(” → “);
+return await callClaude(`Bu Türkçe kelime zincirinin anlam yolculuğunu şiirsel 2-3 cümleyle anlat: ${path} Her geçişin neden anlamlı olduğunu ve büyük resmi anlat. Sadece açıklamayı yaz.`,220);
+};
+
+// ═══════════════════════════════════════════════
+// KOZMİK MÜZİK
+// ═══════════════════════════════════════════════
+class CosmicMusic{
+constructor(){this.ctx=null;this.master=null;this.srcs=[];this.tmr=null;this.on=false;}
+start(){
+if(this.on) return;
+const AC=window.AudioContext||window.webkitAudioContext;
+if(!AC) return;
+this.ctx=new AC();this.on=true;
+this.master=this.ctx.createGain();
+this.master.gain.setValueAtTime(0,this.ctx.currentTime);
+this.master.gain.linearRampToValueAtTime(0.055,this.ctx.currentTime+4);
+this.master.connect(this.ctx.destination);
+// Drones
+[[54.8,.18],[82.4,.12],[109.7,.08],[164.8,.06]].forEach(([f,v])=>this._drone(f,v));
+// Melody
+this._melody();
+}
+_drone(freq,vol){
+const o=this.ctx.createOscillator(),g=this.ctx.createGain();
+const lfo=this.ctx.createOscillator(),lg=this.ctx.createGain();
+o.type=‘sine’;o.frequency.value=freq;
+lfo.frequency.value=0.08+Math.random()*0.04;lg.gain.value=0.4;
+lfo.connect(lg);lg.connect(o.frequency);lfo.start();
+g.gain.value=vol;o.connect(g);g.connect(this.master);o.start();
+this.srcs.push(o,lfo);
+}
+_melody(){
+const notes=[220,261.6,293.7,329.6,392,440,523.3,587.3,659.3];
+const play=()=>{
+if(!this.ctx||!this.on) return;
+const f=notes[Math.floor(Math.random()*notes.length)];
+const o=this.ctx.createOscillator(),e=this.ctx.createGain();
+o.type=‘sine’;o.frequency.value=f;
+const t=this.ctx.currentTime;
+e.gain.setValueAtTime(0,t);
+e.gain.linearRampToValueAtTime(0.35,t+.7);
+e.gain.exponentialRampToValueAtTime(0.001,t+5);
+o.connect(e);e.connect(this.master);o.start(t);o.stop(t+5);
+this.tmr=setTimeout(play,1800+Math.random()*4500);
+};
+this.tmr=setTimeout(play,2000);
+}
+stop(){
+this.on=false;
+clearTimeout(this.tmr);
+if(this.master&&this.ctx){
+this.master.gain.linearRampToValueAtTime(0,this.ctx.currentTime+1.5);
+setTimeout(()=>{
+this.srcs.forEach(s=>{try{s.stop()}catch(e){}});
+if(this.ctx) this.ctx.close();
+this.ctx=null;this.master=null;this.srcs=[];
+},1800);
+}
+}
+}
+const MUSIC=new CosmicMusic();
+
+// ═══════════════════════════════════════════════
+// SES EFEKTLERİ
+// ═══════════════════════════════════════════════
+const SFX=(type)=>{
+try{
+const AC=window.AudioContext||window.webkitAudioContext;if(!AC) return;
+const ctx=new AC();const now=ctx.currentTime;
+const m=ctx.createGain();m.gain.value=0.13;m.connect(ctx.destination);
+const t=(f,st,dur,shape=‘sine’,v=0.7)=>{
+const o=ctx.createOscillator(),g=ctx.createGain();
+o.type=shape;o.frequency.value=f;
+g.gain.setValueAtTime(0,st);g.gain.linearRampToValueAtTime(v,st+.03);
+g.gain.exponentialRampToValueAtTime(.001,st+dur);
+o.connect(g);g.connect(m);o.start(st);o.stop(st+dur);
+};
+if(type===‘click’){t(650,now,.07);t(1100,now+.02,.05);}
+else if(type===‘found’){[330,392,523].forEach((f,i)=>t(f,now+i*.1,1.1));}
+else if(type===‘win’){
+for(let i=0;i<16;i++) t(200*Math.pow(1.45,i/2),now+i*.07,2.4);
+setTimeout(()=>{[523,659,784,1047].forEach((f,i)=>t(f,ctx.currentTime+i*.05,3));},1100);
+}
+else if(type===‘hint’){for(let i=0;i<8;i++) t(900+Math.random()*1800,now+Math.random()*.4,.18,‘sine’,.2);}
+else if(type===‘error’){
+const o=ctx.createOscillator(),g=ctx.createGain();
+o.type=‘triangle’;o.frequency.setValueAtTime(155,now);o.frequency.linearRampToValueAtTime(90,now+.32);
+g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(.45,now+.04);g.gain.linearRampToValueAtTime(0,now+.32);
+o.connect(g);g.connect(m);o.start(now);o.stop(now+.32);
+}
+}catch(e){}
+};
+
+const KB=[[“E”,“R”,“T”,“Y”,“U”,“I”,“O”,“P”,“Ğ”,“Ü”],[“A”,“S”,“D”,“F”,“G”,“H”,“J”,“K”,“L”,“Ş”,“İ”],[“Z”,“C”,“V”,“B”,“N”,“M”,“Ö”,“Ç”]];
+const DIFF_CFG={kolay:{label:“KOLAY”,cls:“d-kolay”,icon:“🌱”},orta:{label:“ORTA”,cls:“d-orta”,icon:“⚡”},zor:{label:“ZOR”,cls:“d-zor”,icon:“🔥”}};
+
+// ═══════════════════════════════════════════════
+// ARKA PLAN BİLEŞENİ
+// ═══════════════════════════════════════════════
+function CosmicBg({stars,shooters}){
+return(
+<div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+{/* Nebula glows */}
+<div style={{position:‘absolute’,width:‘60%’,height:‘60%’,top:‘10%’,left:‘20%’,
+background:‘radial-gradient(ellipse at 40% 50%, rgba(55,10,120,.18) 0%, transparent 70%)’,
+animation:‘nebulaFloat 15s ease-in-out infinite’,filter:‘blur(40px)’}}/>
+<div style={{position:‘absolute’,width:‘40%’,height:‘40%’,top:‘40%’,left:‘55%’,
+background:‘radial-gradient(ellipse at 60% 50%, rgba(10,40,120,.14) 0%, transparent 70%)’,
+animation:‘nebulaFloat 20s ease-in-out infinite reverse’,filter:‘blur(50px)’}}/>
+{/* Static stars */}
+{stars.map(s=>(
+<div key={s.id} style={{
+position:‘absolute’,left:`${s.l}%`,top:`${s.t}%`,
+width:`${s.sz}px`,height:`${s.sz}px`,borderRadius:‘50%’,
+background:‘white’,boxShadow:`0 0 ${s.sz*3}px rgba(255,255,255,.7)`,
+animation:`twinkle ${s.d}s ${s.dl}s ease-in-out infinite`
+}}/>
+))}
+{/* Shooting stars */}
+{shooters.map(s=>(
+<div key={s.id} style={{
+position:‘absolute’,left:`${s.l}%`,top:`${s.t}%`,
+animation:`shoot ${s.spd}s ease-out forwards`,
+transform:`rotate(${s.ang}deg)`,zIndex:2
+}}>
+<div style={{width:‘4px’,height:‘4px’,borderRadius:‘50%’,background:‘white’,
+boxShadow:‘0 0 10px 3px rgba(200,210,255,.9)’,position:‘relative’,zIndex:1}}/>
+<div style={{position:‘absolute’,top:‘50%’,left:0,width:`${s.len}px`,height:‘1.5px’,
+background:‘linear-gradient(to left, transparent, rgba(180,190,255,.5), white)’,
+transform:‘translateY(-50%)’,filter:‘blur(.5px)’}}/>
+</div>
+))}
+</div>
+);
+}
+
+// ═══════════════════════════════════════════════
+// TAKIMYILDIZSVGbileşeni — tüm bağlantıları çizer
+// ═══════════════════════════════════════════════
+function ConstellationSVG({positions,constData,foundWords,totalNodes}){
+return(
+<svg className=“absolute inset-0 w-full h-full” xmlns=“http://www.w3.org/2000/svg” style={{pointerEvents:‘none’}}>
+<defs>
+<linearGradient id="lg1" x1="0%" y1="0%" x2="100%" y2="0%">
+<stop offset="0%" stopColor="#6366f1" stopOpacity=".8"/>
+<stop offset="100%" stopColor="#a5b4fc" stopOpacity="1"/>
+</linearGradient>
+<filter id="glow2">
+<feGaussianBlur stdDeviation="2.5" result="b"/>
+<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+</filter>
+<filter id="softglow">
+<feGaussianBlur stdDeviation="1.2" result="b"/>
+<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+</filter>
+</defs>
+
+```
+  {/* Ghost lines — full constellation faintly */}
+  {constData.lines.map(([a,b],i)=>{
+    const pa=positions[a],pb=positions[b];
+    return(<line key={`gh${i}`}
+      x1={`${pa.x}%`} y1={`${pa.y}%`} x2={`${pb.x}%`} y2={`${pb.y}%`}
+      stroke="rgba(255,255,255,0.05)" strokeWidth="1.5" strokeDasharray="4 8"/>);
+  })}
+
+  {/* Active lines */}
+  {constData.lines.map(([a,b],i)=>{
+    // Line active if both endpoint nodes are solved/start/end
+    const aActive=a===0||a===totalNodes-1||foundWords.includes(a-1);
+    const bActive=b===0||b===totalNodes-1||foundWords.includes(b-1);
+    const active=aActive&&bActive;
+    if(!active) return null;
+    const pa=positions[a],pb=positions[b];
+    return(<line key={`al${i}`}
+      x1={`${pa.x}%`} y1={`${pa.y}%`} x2={`${pb.x}%`} y2={`${pb.y}%`}
+      stroke="url(#lg1)" strokeWidth="1.8"
+      filter="url(#softglow)"
+      style={{opacity:1,animation:'fadeUp .6s ease-out'}}/>);
+  })}
+</svg>
+```
+
+);
+}
+
+// ═══════════════════════════════════════════════
+// ANA UYGULAMA
+// ═══════════════════════════════════════════════
+function App(){
+const [screen,setScreen]=useState(‘WELCOME’);
+const [name,setName]=useState(’’);
+const [nameErr,setNameErr]=useState(false);
+
+const [lvlIdx,setLvlIdx]=useState(0);
+const [level,setLevel]=useState(null);
+const [maxLvl,setMaxLvl]=useState(0);
+const [genLoading,setGenLoading]=useState(false);
+
+const [found,setFound]=useState([]);
+const [guesses,setGuesses]=useState({});
+const [selNode,setSelNode]=useState(null);
+const [hintUsed,setHintUsed]=useState(false);
+const [streak,setStreak]=useState(0);
+const [dust,setDust]=useState(10);
+
+const [winModal,setWinModal]=useState(false);
+const [winExpl,setWinExpl]=useState(’’);
+const [explLoading,setExplLoading]=useState(false);
+
+const [showMap,setShowMap]=useState(false);
+const [menuOpen,setMenuOpen]=useState(false);
+const [confirm,setConfirm]=useState(null);
+const [errMsg,setErrMsg]=useState(null);
+const [infoModal,setInfoModal]=useState(false);
+
+const [aiHint,setAiHint]=useState(null);
+const [aiLoading,setAiLoading]=useState(false);
+const [animStar,setAnimStar]=useState(null);
+const [hintSlot,setHintSlot]=useState(null);
+
+const [soundOn,setSoundOn]=useState(true);
+const [musicOn,setMusicOn]=useState(false);
+
+const [bgStars,setBgStars]=useState([]);
+const [shooters,setShooters]=useState([]);
+
+const inputRef=useRef(null);
+const slotRefs=useRef([]);
+const mapRef=useRef(null);
+
+const play=useCallback((t)=>{if(soundOn) SFX(t);},[soundOn]);
+const showErr=(msg)=>{setErrMsg(msg);setTimeout(()=>setErrMsg(null),2300);};
+
+// ── Toggle music ──
+const toggleMusic=()=>{
+if(musicOn){MUSIC.stop();setMusicOn(false);}
+else{MUSIC.start();setMusicOn(true);}
+};
+
+// ── localStorage ──
+useEffect(()=>{
+const n=localStorage.getItem(‘ya3_name’);
+const l=localStorage.getItem(‘ya3_lvl’);
+const m=localStorage.getItem(‘ya3_max’);
+const d=localStorage.getItem(‘ya3_dust’);
+const s=localStorage.getItem(‘ya3_streak’);
+if(n) setName(n);
+if(l) setLvlIdx(+l||0);
+if(m) setMaxLvl(+m||0);
+if(d) setDust(+d||10);
+if(s) setStreak(+s||0);
+},[]);
+
+useEffect(()=>{
+if(!name) return;
+localStorage.setItem(‘ya3_name’,name);
+localStorage.setItem(‘ya3_lvl’,lvlIdx);
+localStorage.setItem(‘ya3_max’,maxLvl);
+localStorage.setItem(‘ya3_dust’,dust);
+localStorage.setItem(‘ya3_streak’,streak);
+},[name,lvlIdx,maxLvl,dust,streak]);
+
+// ── Background ──
+useEffect(()=>{
+setBgStars(Array.from({length:220},(_,i)=>({
+id:i,l:Math.random()*100,t:Math.random()*100,
+sz:Math.random()*2+.4,d:Math.random()*4+2,dl:Math.random()*7
+})));
+const iv=setInterval(()=>{
+if(Math.random()>.45){
+const s={id:Date.now(),l:10+Math.random()*80,t:Math.random()*35,
+ang:-35-Math.random()*20,spd:2+Math.random()*1.5,len:200+Math.random()*300};
+setShooters(p=>[…p,s]);
+setTimeout(()=>setShooters(p=>p.filter(x=>x.id!==s.id)),3500);
+}
+},3500);
+return()=>clearInterval(iv);
+},[]);
+
+// ── Load level ──
+useEffect(()=>{
+setFound([]);setGuesses({});setSelNode(null);setWinModal(false);
+setWinExpl(’’);setErrMsg(null);setAnimStar(null);setHintSlot(null);
+setMenuOpen(false);setAiHint(null);setHintUsed(false);
+
+```
+const id=lvlIdx+1;
+const base=BASE_LEVELS.find(l=>l.id===id);
+if(base){setLevel(base);return;}
+
+try{
+  const c=localStorage.getItem(`ya3_lvl_${lvlIdx}`);
+  if(c){setLevel(JSON.parse(c));return;}
+}catch(e){}
+
+setGenLoading(true);
+generateLevel(id).then(gen=>{
+  localStorage.setItem(`ya3_lvl_${lvlIdx}`,JSON.stringify(gen));
+  setLevel(gen);setGenLoading(false);
+}).catch(()=>{
+  setLevel(BASE_LEVELS[0]);setGenLoading(false);
+});
+```
+
+},[lvlIdx]);
+
+// ── Focus ──
+useEffect(()=>{
+if(selNode!==null&&inputRef.current&&window.innerWidth>768) inputRef.current.focus();
+},[selNode]);
+
+// ── Map scroll ──
+useEffect(()=>{
+if(showMap){const el=document.getElementById(`lb-${lvlIdx}`);if(el) el.scrollIntoView({behavior:‘smooth’,block:‘center’});}
+},[showMap,lvlIdx]);
+
+if(!level) return(
+<div className="fixed inset-0 bg-[#010108] flex items-center justify-center">
+<CosmicBg stars={bgStars} shooters={shooters}/>
+<div className="relative z-10 flex flex-col items-center gap-4">
+<div className=“w-14 h-14 rounded-full border-2 border-indigo-500/30 border-t-indigo-400” style={{animation:‘spinSlow 1s linear infinite’}}/>
+<p className="f-cinzel text-sm tracking-[.3em] text-white/40">YÜKLENİYOR</p>
+</div>
+</div>
+);
+
+const total=level.chain.length+2;
+const constGroup=CONST_DATA[total]||CONST_DATA[5];
+const constData=constGroup[lvlIdx%constGroup.length];
+const nodePos=constData.stars.map(s=>({x:s.x,y:s.y}));
+const isSession=name.trim().length>0;
+
+// ── Handlers ──
+const handleStart=()=>{
+if(!name.trim()){setNameErr(true);play(‘error’);setTimeout(()=>setNameErr(false),700);return;}
+play(‘click’);setScreen(‘PLAYING’);
+};
+
+const goLevel=(i)=>{
+if(i>maxLvl) return;
+play(‘click’);setLvlIdx(i);setScreen(‘PLAYING’);setShowMap(false);
+};
+
+const handleNodeClick=(i)=>{
+play(‘click’);
+if(i===0||i===total-1||found.includes(i-1)) return;
+const ci=i-1;
+if(ci>0&&!found.includes(ci-1)){play(‘error’);showErr(“Önce önceki yıldızı çöz.”);return;}
+setSelNode(ci);setAiHint(null);setHintUsed(false);
+};
+
+const processInput=(val)=>{
+if(selNode===null) return;
+const target=level.chain[selNode];
+const upper=val.toLocaleUpperCase(‘tr-TR’);
+if(upper.length<=target.length) setGuesses(g=>({…g,[selNode]:upper}));
+if(upper===target) doCorrect(selNode);
+};
+
+const kbPress=(ch)=>{
+play(‘click’);
+if(selNode===null) return;
+const cur=guesses[selNode]||’’;
+if(cur.length<level.chain[selNode].length) processInput(cur+ch);
+};
+
+const kbBack=()=>{
+play(‘click’);
+if(selNode===null) return;
+const cur=guesses[selNode]||’’;
+if(cur.length>0) processInput(cur.slice(0,-1));
+};
+
+const doCorrect=(idx)=>{
+play(‘found’);
+const nf=[…found,idx];
+setFound(nf);
+if(!hintUsed){
+const ns=streak+1;setStreak(ns);
+if(ns%3===0&&ns>0){SFX(‘hint’);setDust(d=>d+1);showErr(`🔥 ${ns} seri! +1 toz!`);}
+} else setStreak(0);
+setTimeout(()=>{
+setSelNode(null);
+if(nf.length===level.chain.length){
+setTimeout(async()=>{
+play(‘win’);setWinModal(true);setExplLoading(true);setWinExpl(’’);
+try{const e=await explainChain(level.start,level.end,level.chain);setWinExpl(e);}
+catch(e){setWinExpl(‘Zincir tamamlandı! Kavramsal köprü kuruldu.’);}
+setExplLoading(false);
+},400);
+}
+},350);
+};
+
+const doLetterHint=()=>{
+if(selNode===null||animStar) return;
+if(dust<1){play(‘error’);showErr(“Yıldız tozu yetersiz.”);return;}
+play(‘hint’);setHintUsed(true);setStreak(0);
+const target=level.chain[selNode];
+const cur=(guesses[selNode]||’’).toLocaleUpperCase(‘tr-TR’);
+let ni=0;
+for(let i=0;i<target.length;i++){if(cur[i]!==target[i]){ni=i;break;}ni=i+1;}
+if(ni>=target.length) return;
+setDust(d=>d-1);
+const slot=slotRefs.current[ni];if(!slot) return;
+const r=slot.getBoundingClientRect();
+const sx=window.innerWidth*.88,sy=30;
+setAnimStar({sx,sy,tx:r.left+r.width/2-sx,ty:r.top+r.height/2-sy});
+setTimeout(()=>{
+const nc=target[ni];
+const nv=cur.substring(0,ni)+nc+cur.substring(ni+1);
+setGuesses(g=>({…g,[selNode]:nv}));
+setHintSlot(ni);setTimeout(()=>setHintSlot(null),900);
+if(nv===target) doCorrect(selNode);
+setAnimStar(null);
+},1700);
+};
+
+const doAIHint=async()=>{
+if(selNode===null) return;
+if(dust<2){play(‘error’);showErr(“Yıldız tozu yetersiz (2 gerekli).”);return;}
+play(‘hint’);setHintUsed(true);setStreak(0);setDust(d=>d-2);
+setAiLoading(true);setAiHint(null);
+try{
+const prev=selNode===0?level.start:(found.includes(selNode-1)?level.chain[selNode-1]:’?’);
+const next=selNode===level.chain.length-1?level.end:level.chain[selNode+1]||’?’;
+const h=await getAIHint(level.chain[selNode],level.hints[selNode],prev,next);
+setAiHint(h);
+}catch(e){setAiHint(“İpucu şu an alınamadı. Tekrar dene.”);}
+setAiLoading(false);
+};
+
+const doReveal=()=>{
+if(selNode===null) return;
+if(dust<3){play(‘error’);showErr(“Yıldız tozu yetersiz (3 gerekli).”);return;}
+play(‘hint’);setHintUsed(true);setStreak(0);setDust(d=>d-3);
+const t=level.chain[selNode];
+setGuesses(g=>({…g,[selNode]:t}));
+doCorrect(selNode);
+};
+
+const doNext=()=>{
+play(‘click’);setDust(d=>d+2);
+const ni=lvlIdx+1;
+if(ni>maxLvl) setMaxLvl(ni);
+if(ni<100) setLvlIdx(ni); else setLvlIdx(0);
+};
+
+const doReset=()=>{
+play(‘click’);
+setLvlIdx(0);setMaxLvl(0);setDust(10);setStreak(0);
+[‘ya3_lvl’,‘ya3_max’,‘ya3_dust’,‘ya3_streak’].forEach(k=>localStorage.removeItem(k));
+for(let i=15;i<100;i++) localStorage.removeItem(`ya3_lvl_${i}`);
+setScreen(‘WELCOME’);setConfirm(null);
+};
+const doQuit=()=>{play(‘click’);setScreen(‘WELCOME’);setConfirm(null);setMenuOpen(false);};
+const doLogout=()=>{
+play(‘click’);setName(’’);setLvlIdx(0);setMaxLvl(0);setDust(10);setStreak(0);
+localStorage.clear();setScreen(‘WELCOME’);setConfirm(null);
+};
+
+const diffCfg=DIFF_CFG[level.diff||‘orta’];
+
+// ── MAP ──
+if(showMap) return(
+<div className="fixed inset-0 bg-[#010108] flex flex-col p-4 md:p-6 z-50">
+<CosmicBg stars={bgStars} shooters={shooters}/>
+<div className="relative z-10 flex flex-col h-full max-w-4xl mx-auto w-full">
+<div className="flex justify-between items-center mb-5">
+<div className="flex items-center gap-2"><Map size={18} className="text-amber-300"/><h2 className="f-cinzel text-lg tracking-[.25em] text-white">ATLAS</h2></div>
+<button onClick={()=>{play(‘click’);setShowMap(false);}} className=“glass px-3 py-1.5 rounded-full text-xs font-bold tracking-widest hover:bg-white/15 transition flex items-center gap-1.5”><ArrowLeft size={13}/>GERİ</button>
+</div>
+<div ref={mapRef} className="flex-1 overflow-y-auto thin-scroll grid grid-cols-5 md:grid-cols-8 lg:grid-cols-10 gap-2.5 content-start pb-4">
+{Array.from({length:100},(_,i)=>{
+const locked=i>maxLvl,cur=i===lvlIdx,pass=i<maxLvl;
+return(
+<button key={i} id={`lb-${i}`} onClick={()=>goLevel(i)} disabled={locked}
+className={`aspect-square rounded-xl flex items-center justify-center relative transition-all duration-200 ${cur?'scale-110 z-10':pass?'hover:scale-105':'opacity-25 grayscale cursor-not-allowed'}`}>
+<div className={`absolute inset-0 rounded-xl border ${cur?'bg-indigo-600/25 border-indigo-400/50 shadow-[0_0_20px_rgba(99,102,241,.4)]':pass?'bg-amber-600/12 border-amber-500/20':'bg-white/2 border-white/5'}`}/>
+<span className={`relative z-10 f-mono text-xs font-bold ${cur?'text-white':pass?'text-amber-200':'text-white/25'}`}>{i+1}</span>
+{pass&&!cur&&<Star size={7} className="absolute -top-0.5 -right-0.5 text-amber-400 fill-amber-400"/>}
+</button>
+);
+})}
+</div>
+</div>
+</div>
+);
+
+// ── WELCOME ──
+if(screen===‘WELCOME’) return(
+<div className="fixed inset-0 overflow-hidden">
+<CosmicBg stars={bgStars} shooters={shooters}/>
+<div className="relative z-10 flex flex-col items-center justify-center w-full h-full p-5">
+<div className=“absolute pointer-events-none w-[70vw] h-[70vw] max-w-[500px] max-h-[500px] rounded-full” style={{background:‘radial-gradient(ellipse, rgba(60,10,140,.2) 0%, transparent 70%)’,filter:‘blur(60px)’,top:‘50%’,left:‘50%’,transform:‘translate(-50%,-60%)’}}/>
+<div className="relative z-10 flex flex-col items-center gap-6 w-full max-w-sm">
+{/* Logo */}
+<div className=“flex flex-col items-center gap-3” style={{animation:‘fadeUp .8s ease-out’}}>
+<div className=“p-4 rounded-full glass shadow-[0_0_50px_rgba(99,102,241,.15)]” style={{animation:‘nebulaFloat 4s ease-in-out infinite’}}>
+<BrainCircuit size={42} className="text-indigo-300"/>
+</div>
+<h1 className=“f-cinzel-d text-4xl md:text-5xl font-bold text-center leading-tight”
+style={{background:‘linear-gradient(to bottom, #fff 0%, rgba(255,255,255,.35) 100%)’,WebkitBackgroundClip:‘text’,WebkitTextFillColor:‘transparent’,letterSpacing:’.3em’}}>
+YILDIZ<br/>AĞI
+</h1>
+<p style={{fontSize:‘10px’,letterSpacing:’.45em’,color:‘rgba(255,255,255,.2)’,textTransform:‘uppercase’}}>Kavramlar arası evrensel köprüler</p>
+</div>
+
+```
+      {/* Card */}
+      <div className="w-full glass-dark rounded-[1.8rem] p-6 shadow-2xl relative overflow-hidden" style={{animation:'fadeUp .9s .1s ease-out both'}}>
+        <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full pointer-events-none" style={{background:'radial-gradient(circle, rgba(99,102,241,.12) 0%, transparent 70%)',filter:'blur(20px)'}}/>
+
+        <div className="flex justify-end gap-2 mb-4">
+          <button onClick={()=>{play('click');setSoundOn(s=>!s);}} className="glass px-2.5 py-1.5 rounded-full text-white/40 hover:text-white transition" title="Ses">
+            {soundOn?<Volume2 size={14}/>:<VolumeX size={14}/>}
+          </button>
+          <button onClick={toggleMusic} className="glass px-2.5 py-1.5 rounded-full transition" style={{color:musicOn?'rgb(167,139,250)':'rgba(255,255,255,.3)'}} title="Müzik">
+            {musicOn?<Music size={14}/>:<Music2 size={14}/>}
+          </button>
+        </div>
+
+        {/* Name input */}
+        <div className="mb-5">
+          <label style={{fontSize:'10px',letterSpacing:'.2em',color:'rgba(255,255,255,.3)',textTransform:'uppercase',paddingLeft:'4px',display:'block',marginBottom:'8px'}}>Kozmik Kimlik</label>
+          <div className={nameErr?'anim-shake':''} style={{position:'relative'}}>
+            <User size={15} style={{position:'absolute',left:'14px',top:'50%',transform:'translateY(-50%)',color:'rgba(255,255,255,.3)',pointerEvents:'none'}}/>
+            <input
+              type="text"
+              value={name}
+              onChange={e=>{setName(e.target.value.toLocaleUpperCase('tr-TR'));setNameErr(false);}}
+              placeholder="İSMİNİ GİR..."
+              style={{
+                width:'100%',paddingTop:'12px',paddingBottom:'12px',paddingLeft:'38px',paddingRight:'14px',
+                background:nameErr?'rgba(239,68,68,.1)':'rgba(255,255,255,.07)',
+                border:`1px solid ${nameErr?'rgba(239,68,68,.5)':'rgba(255,255,255,.13)'}`,
+                borderRadius:'14px',outline:'none',fontSize:'14px',fontFamily:'Space Mono, monospace',
+                letterSpacing:'.1em',color:'white',WebkitTextFillColor:'white',caretColor:'white',
+                transition:'border .2s, background .2s'
+              }}
+              onFocus={e=>{e.target.style.borderColor='rgba(99,102,241,.5)';}}
+              onBlur={e=>{e.target.style.borderColor=nameErr?'rgba(239,68,68,.5)':'rgba(255,255,255,.13)';}}
+            />
+          </div>
+        </div>
+
+        {/* Buttons */}
+        <div style={{display:'flex',flexDirection:'column',gap:'10px'}}>
+          <button onClick={handleStart}
+            style={{width:'100%',padding:'15px',borderRadius:'14px',background:'white',color:'black',fontWeight:'700',letterSpacing:'.25em',fontSize:'13px',border:'none',cursor:'pointer',transition:'transform .15s, box-shadow .15s',boxShadow:'0 0 25px rgba(255,255,255,.18)',position:'relative',overflow:'hidden'}}
+            onMouseEnter={e=>e.target.style.transform='scale(1.02)'}
+            onMouseLeave={e=>e.target.style.transform='scale(1)'}
+            onMouseDown={e=>e.currentTarget.style.transform='scale(.97)'}
+            onMouseUp={e=>e.currentTarget.style.transform='scale(1.02)'}>
+            <span style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}>
+              {(maxLvl>0||lvlIdx>0)?<><ArrowRight size={15}/>DEVAM ET</>:<><Play size={13} fill="black" style={{color:'black'}}/>BAŞLAT</>}
+            </span>
+          </button>
+          <div style={{display:'flex',gap:'8px'}}>
+            <button onClick={()=>{play('click');setShowMap(true);}} className="glass" style={{flex:1,padding:'11px',borderRadius:'12px',cursor:'pointer',color:'white',fontSize:'10px',fontWeight:'700',letterSpacing:'.15em',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px',transition:'background .2s'}} onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.12)'} onMouseLeave={e=>e.currentTarget.style.background=''}>
+              <Grid size={12}/>ATLAS
+            </button>
+            {maxLvl>0&&<button onClick={()=>{play('click');setConfirm('reset');}} className="glass" style={{flex:1,padding:'11px',borderRadius:'12px',cursor:'pointer',color:'rgba(255,255,255,.45)',fontSize:'10px',fontWeight:'700',letterSpacing:'.15em',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px',transition:'all .2s'}} onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,.1)';e.currentTarget.style.color='white';}} onMouseLeave={e=>{e.currentTarget.style.background='';e.currentTarget.style.color='rgba(255,255,255,.45)';}}>
+              <RefreshCcw size={12}/>SIFIRLA
+            </button>}
+          </div>
+          {isSession&&<button onClick={()=>{play('click');setConfirm('logout');}} style={{padding:'10px',borderRadius:'12px',background:'transparent',border:'none',cursor:'pointer',color:'rgba(255,255,255,.2)',fontSize:'10px',fontWeight:'700',letterSpacing:'.1em',transition:'color .2s'}} onMouseEnter={e=>e.target.style.color='rgba(248,113,113,.7)'} onMouseLeave={e=>e.target.style.color='rgba(255,255,255,.2)'}>
+            OTURUMU KAPAT
+          </button>}
+        </div>
+        {lvlIdx>0&&<p style={{textAlign:'center',fontSize:'10px',color:'rgba(99,102,241,.4)',letterSpacing:'.12em',marginTop:'14px',borderTop:'1px solid rgba(255,255,255,.05)',paddingTop:'12px',textTransform:'uppercase'}}>Son konum: Seviye {lvlIdx+1}</p>}
+      </div>
+    </div>
+  </div>
+  <ConfirmModal c={confirm} setC={setConfirm} play={play} onReset={doReset} onQuit={doQuit} onLogout={doLogout}/>
+</div>
+```
+
+);
+
+// ── YÜKLEME ──
+if(genLoading) return(
+<div className="fixed inset-0 bg-[#010108] flex flex-col items-center justify-center gap-5 z-50">
+<CosmicBg stars={bgStars} shooters={shooters}/>
+<div className="relative z-10 flex flex-col items-center gap-4">
+<div style={{width:‘56px’,height:‘56px’,borderRadius:‘50%’,border:‘2px solid rgba(99,102,241,.2)’,borderTopColor:‘rgba(99,102,241,.9)’,animation:‘spinSlow 1s linear infinite’}}/>
+<p className=“f-cinzel” style={{fontSize:‘14px’,letterSpacing:’.3em’,color:‘rgba(255,255,255,.4)’}}>SEVİYE YARATILIYOR</p>
+<p style={{fontSize:‘10px’,color:‘rgba(255,255,255,.2)’,letterSpacing:’.25em’}}>Claude tasarlıyor…</p>
+</div>
+</div>
+);
+
+// ══════════════════════════════════
+// ── OYUN EKRANI ──
+// ══════════════════════════════════
+return(
+<div className=“fixed inset-0 overflow-hidden” style={{userSelect:‘none’}}>
+<CosmicBg stars={bgStars} shooters={shooters}/>
+
+```
+  {/* HUD */}
+  <div style={{position:'fixed',top:0,left:0,right:0,zIndex:30,padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'flex-start',pointerEvents:'none'}}>
+    <div style={{pointerEvents:'auto',display:'flex',flexDirection:'column',gap:'6px'}}>
+      <h2 className="f-cinzel" style={{fontSize:'clamp(13px,2.5vw,18px)',fontWeight:'700',letterSpacing:'.2em',color:'white',textShadow:'0 0 20px rgba(99,102,241,.4)'}}>{name}</h2>
+      <div style={{display:'flex',alignItems:'center',gap:'6px',flexWrap:'wrap'}}>
+        <span className="glass f-mono" style={{padding:'3px 10px',borderRadius:'20px',fontSize:'10px',letterSpacing:'.1em',color:'rgba(255,255,255,.45)'}}>{String(lvlIdx+1).padStart(2,'0')}/100</span>
+        <span className={`${diffCfg.cls} border`} style={{padding:'3px 10px',borderRadius:'20px',fontSize:'10px',fontWeight:'700',letterSpacing:'.12em'}}>{diffCfg.icon} {diffCfg.label}</span>
+        {streak>=3&&<span style={{padding:'3px 10px',borderRadius:'20px',fontSize:'10px',fontWeight:'700',letterSpacing:'.1em',color:'#fb923c',background:'rgba(251,146,60,.1)',border:'1px solid rgba(251,146,60,.3)',animation:'nodePulse 1.5s infinite'}}>🔥{streak}</span>}
+      </div>
+    </div>
+    <div style={{pointerEvents:'auto',display:'flex',flexDirection:'column',alignItems:'flex-end',gap:'8px',position:'relative'}}>
+      <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
+        <div className="glass" style={{padding:'5px 12px',borderRadius:'20px',display:'flex',alignItems:'center',gap:'6px'}}>
+          <Sparkles size={12} style={{color:'rgb(253,230,138)'}}/>
+          <span className="f-mono" style={{fontSize:'11px',fontWeight:'700',color:'rgb(253,230,138)'}}>{dust}</span>
+        </div>
+        <button onClick={()=>{play('click');setMenuOpen(m=>!m);}} className="glass" style={{padding:'5px 14px',borderRadius:'20px',fontSize:'11px',fontWeight:'700',letterSpacing:'.15em',color:'white',cursor:'pointer',transition:'background .15s'}} onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.12)'} onMouseLeave={e=>e.currentTarget.style.background=''}>MENÜ</button>
+      </div>
+      {menuOpen&&(
+        <div className="glass-dark anim-fade-up" style={{position:'absolute',top:'100%',right:0,marginTop:'6px',width:'170px',borderRadius:'16px',padding:'6px',boxShadow:'0 8px 40px rgba(0,0,0,.8)',zIndex:50}}>
+          {[
+            {icon:<Home size={13}/>,label:"ANA MENÜ",action:()=>{setConfirm('quit');setMenuOpen(false);}},
+            {icon:<Map size={13}/>,label:"ATLAS",action:()=>{play('click');setShowMap(true);setMenuOpen(false);}},
+            {icon:soundOn?<Volume2 size={13}/>:<VolumeX size={13}/>,label:`SES ${soundOn?'AÇIK':'KAPALI'}`,action:()=>{play('click');setSoundOn(s=>!s);}},
+            {icon:musicOn?<Music size={13}/>:<Music2 size={13}/>,label:`MÜZİK ${musicOn?'AÇIK':'KAPALI'}`,action:toggleMusic},
+            {icon:<Info size={13}/>,label:"TAKIMYILDIZEGİ",action:()=>{play('click');setInfoModal(true);setMenuOpen(false);}},
+          ].map(({icon,label,action})=>(
+            <button key={label} onClick={()=>{play('click');action();}} style={{width:'100%',display:'flex',alignItems:'center',gap:'10px',padding:'9px 12px',borderRadius:'10px',background:'transparent',border:'none',color:'rgba(255,255,255,.75)',cursor:'pointer',textAlign:'left',fontSize:'10px',fontWeight:'700',letterSpacing:'.12em',transition:'background .15s'}} onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.1)'} onMouseLeave={e=>e.currentTarget.style.background=''}>
+              <span style={{opacity:.5}}>{icon}</span>{label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+
+  {/* Constellation name */}
+  <div style={{position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',pointerEvents:'none',zIndex:1,textAlign:'center'}}>
+    <p className="f-cinzel" style={{fontSize:'clamp(20px,5vw,38px)',fontWeight:'700',letterSpacing:'.35em',color:'rgba(255,255,255,.04)',userSelect:'none',whiteSpace:'nowrap'}}>{constData.name}</p>
+  </div>
+
+  {/* Error/info pill */}
+  {errMsg&&(
+    <div className="glass-dark anim-fade-up" style={{position:'fixed',top:'76px',left:'50%',transform:'translateX(-50%)',zIndex:40,padding:'7px 18px',borderRadius:'20px',fontSize:'12px',fontWeight:'700',letterSpacing:'.1em',whiteSpace:'nowrap',boxShadow:'0 4px 20px rgba(0,0,0,.6)'}}>
+      {errMsg}
+    </div>
+  )}
+
+  {/* Game area */}
+  <main style={{position:'relative',zIndex:10,width:'100%',height:'100vh',display:'flex',alignItems:'center',justifyContent:'center'}}>
+    <ConstellationSVG positions={nodePos} constData={constData} foundWords={found} totalNodes={total}/>
+
+    {nodePos.map((pos,i)=>{
+      const isStart=i===0,isEnd=i===total-1;
+      const ci=i-1;
+      const isFnd=!isStart&&!isEnd&&found.includes(ci);
+      const isNext=!isStart&&!isEnd&&!isFnd&&(ci===0||found.includes(ci-1));
+      const isLocked=!isStart&&!isEnd&&!isFnd&&!isNext;
+      const lbl=isStart?level.start:isEnd?level.end:isFnd?level.chain[ci]:"?";
+      const starName=constData.stars[i]?.n||'';
+
+      return(
+        <div key={i} className="star-node" onClick={()=>handleNodeClick(i)}
+          style={{
+            position:'absolute',left:`${pos.x}%`,top:`${pos.y}%`,
+            transform:`translate(-50%,-50%) scale(${isNext?1.1:1})`,
+            display:'flex',flexDirection:'column',alignItems:'center',gap:'12px',
+            zIndex:isNext?20:10,cursor:isNext?'pointer':'default',
+            opacity:isLocked?.22:1,filter:isLocked?'blur(.8px)':'none',
+          }}>
+          {/* Star node circle */}
+          <div style={{
+            position:'relative',width:'clamp(42px,6vw,56px)',height:'clamp(42px,6vw,56px)',
+            borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',
+            background:(isStart||isEnd||isFnd)?'rgba(251,191,36,.1)':isNext?'rgba(99,102,241,.1)':'rgba(255,255,255,.04)',
+            border:`1px solid ${(isStart||isEnd||isFnd)?'rgba(251,191,36,.4)':isNext?'rgba(129,140,248,.45)':'rgba(255,255,255,.07)'}`,
+            backdropFilter:'blur(8px)',
+            boxShadow:(isStart||isEnd||isFnd)?'0 0 30px rgba(251,191,36,.25)':isNext?'0 0 30px rgba(99,102,241,.25)':'none',
+            animation:isNext?'nodePulse 2s ease-in-out infinite':isFnd?'none':undefined,
+            transition:'all .5s',
+          }}>
+            {(isFnd||isStart||isEnd)
+              ?<Star size={18} fill="rgb(251,191,36)" className="spin-slow" style={{color:'rgb(253,230,138)'}}/>
+              :<div style={{width:'8px',height:'8px',borderRadius:'50%',background:isNext?'rgb(165,180,252)':'rgba(255,255,255,.18)',animation:isNext?'ringPulse 1.5s infinite':'none'}}/>
+            }
+            {/* Orbit ring */}
+            {(isNext||isFnd)&&<div style={{position:'absolute',inset:'-5px',borderRadius:'50%',border:'1px solid rgba(255,255,255,.07)',animation:'spinSlow 10s linear infinite'}}/>}
+            {/* Solved burst */}
+            {isFnd&&<div style={{position:'absolute',inset:0,borderRadius:'50%',border:'1px solid rgba(251,191,36,.3)',animation:'starBurst 3s ease-out infinite'}}/>}
+          </div>
+
+          {/* Star name (small) */}
+          {starName&&(isStart||isEnd||isFnd)&&<span style={{position:'absolute',top:'-16px',fontSize:'9px',color:'rgba(255,255,255,.2)',letterSpacing:'.1em',fontFamily:'Space Mono',whiteSpace:'nowrap'}}>{starName}</span>}
+
+          {/* Word label */}
+          <span style={{
+            fontSize:'clamp(8px,1.5vw,10px)',fontWeight:'700',letterSpacing:'.2em',
+            padding:'5px 12px',borderRadius:'20px',whiteSpace:'nowrap',
+            background:(isStart||isEnd||isFnd)?'rgba(120,60,0,.25)':isNext?'rgba(30,30,80,.35)':'transparent',
+            border:`1px solid ${(isStart||isEnd||isFnd)?'rgba(251,191,36,.2)':isNext?'rgba(99,102,241,.25)':'transparent'}`,
+            color:(isStart||isEnd||isFnd)?'rgb(253,224,134)':isNext?'rgb(199,210,254)':'rgba(255,255,255,.2)',
+            backdropFilter:'blur(4px)',
+            transition:'all .5s',
+            maxWidth:'100px',overflow:'hidden',textOverflow:'ellipsis'
+          }}>{lbl}</span>
+        </div>
+      );
+    })}
+  </main>
+
+  {/* Input panel */}
+  {selNode!==null&&(
+    <div style={{position:'fixed',inset:0,zIndex:40,display:'flex',alignItems:'flex-end',justifyContent:'center',pointerEvents:'none'}}>
+      <div className="glass-dark thin-scroll" style={{
+        pointerEvents:'auto',width:'100%',maxWidth:'520px',
+        borderRadius:'2.2rem 2.2rem 0 0',padding:'20px 18px 10px',
+        display:'flex',flexDirection:'column',alignItems:'center',gap:'14px',
+        maxHeight:'92vh',overflowY:'auto',
+        boxShadow:'0 -20px 60px rgba(0,0,0,.9)',
+        animation:'fadeUp .25s ease-out'
+      }}>
+        <button onClick={()=>{play('click');setSelNode(null);setAiHint(null);}} style={{position:'absolute',top:'14px',right:'14px',background:'none',border:'none',color:'rgba(255,255,255,.2)',cursor:'pointer',padding:'6px',transition:'color .15s'}} onMouseEnter={e=>e.target.style.color='rgba(255,255,255,.7)'} onMouseLeave={e=>e.target.style.color='rgba(255,255,255,.2)'}>
+          <X size={20}/>
+        </button>
+
+        {/* Hint text */}
+        <div style={{textAlign:'center',paddingTop:'8px',maxWidth:'340px'}}>
+          <p style={{fontSize:'10px',letterSpacing:'.45em',color:'rgba(255,255,255,.2)',textTransform:'uppercase',marginBottom:'6px'}}>BAĞLANTI KUR · {constData.stars[selNode+1]?.n||''}</p>
+          <p style={{color:'rgba(255,255,255,.75)',fontWeight:'300',fontSize:'clamp(13px,2.5vw,16px)',lineHeight:1.55}}>{level.hints[selNode]}</p>
+        </div>
+
+        {/* AI Hint result */}
+        {(aiHint||aiLoading)&&(
+          <div style={{width:'100%',padding:'12px 14px',borderRadius:'14px',background:'rgba(88,28,135,.18)',border:'1px solid rgba(168,85,247,.22)',textAlign:'center',animation:'fadeUp .3s ease-out'}}>
+            {aiLoading
+              ?<div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px',color:'rgba(216,180,254,.5)'}}>
+                <Loader2 size={13} style={{animation:'spinSlow 1s linear infinite'}}/><span style={{fontSize:'12px',letterSpacing:'.1em'}}>Evren düşünüyor...</span>
+              </div>
+              :<p style={{color:'rgb(233,213,255)',fontSize:'12px',lineHeight:1.6,fontStyle:'italic'}}>
+                <MessageCircle size={11} style={{display:'inline',marginRight:'6px',opacity:.5}}/>{aiHint}
+              </p>
+            }
+          </div>
+        )}
+
+        {/* Letter slots */}
+        <div style={{position:'relative',width:'100%',display:'flex',justifyContent:'center',padding:'6px 0'}}>
+          <input ref={inputRef} type="text" value={guesses[selNode]||''}
+            onChange={e=>processInput(e.target.value)}
+            style={{position:'absolute',inset:0,opacity:0,cursor:'default',fontSize:'16px'}}
+            autoComplete="off" inputMode="none"/>
+          <div style={{display:'flex',gap:'8px',flexWrap:'wrap',justifyContent:'center'}}>
+            {Array.from({length:level.chain[selNode].length}).map((_,ci)=>{
+              const ch=(guesses[selNode]||'')[ci];
+              const isHint=hintSlot===ci;
+              return(
+                <div key={ci} ref={el=>slotRefs.current[ci]=el}
+                  style={{
+                    width:'clamp(36px,9vw,46px)',height:'clamp(50px,12vw,60px)',
+                    borderBottom:`2px solid ${isHint?'rgb(253,230,138)':ch?'rgba(255,255,255,.75)':'rgba(255,255,255,.18)'}`,
+                    display:'flex',alignItems:'center',justifyContent:'center',
+                    fontSize:'clamp(20px,5vw,28px)',fontFamily:'Space Mono,monospace',fontWeight:'700',
+                    color:isHint?'rgb(253,230,138)':ch?'white':'rgba(255,255,255,.08)',
+                    textShadow:isHint?'0 0 25px rgba(253,230,138,.8)':'none',
+                    transition:'all .3s',
+                    animation:isHint?'pop .35s ease-out':undefined
+                  }}>
+                  {ch||''}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Hint buttons */}
+        <div style={{display:'flex',gap:'8px',width:'100%',justifyContent:'center'}}>
+          {[
+            {label:"HARF",cost:1,icon:animStar?<Loader2 size={13} style={{animation:'spinSlow 1s linear infinite'}}/>:<Lightbulb size={13}/>,action:doLetterHint,disabled:!!animStar||dust<1,grad:'rgba(245,158,11,.1),rgba(234,88,12,.1)',border:'rgba(245,158,11,.25)',txt:'rgb(252,211,77)'},
+            {label:"AI İPUCU",cost:2,icon:aiLoading?<Loader2 size={13} style={{animation:'spinSlow 1s linear infinite'}}/>:<Zap size={13}/>,action:doAIHint,disabled:aiLoading||dust<2,grad:'rgba(139,92,246,.1),rgba(109,40,217,.1)',border:'rgba(139,92,246,.3)',txt:'rgb(196,181,253)'},
+            {label:"ÇÖZ",cost:3,icon:dust<3?<Lock size={13}/>:<Eye size={13}/>,action:doReveal,disabled:dust<3,grad:'rgba(239,68,68,.1),rgba(219,39,119,.1)',border:'rgba(239,68,68,.25)',txt:'rgb(252,165,165)'},
+          ].map(({label,cost,icon,action,disabled,grad,border,txt})=>(
+            <button key={label} onClick={action} disabled={disabled}
+              style={{
+                flex:1,maxWidth:'130px',padding:'9px 4px',borderRadius:'14px',border:`1px solid ${disabled?'rgba(255,255,255,.08)':border}`,
+                background:disabled?'rgba(255,255,255,.03)':`linear-gradient(135deg,${grad})`,
+                color:disabled?'rgba(255,255,255,.25)':txt,
+                cursor:disabled?'not-allowed':'pointer',
+                display:'flex',alignItems:'center',justifyContent:'center',gap:'5px',
+                transition:'all .15s',
+                opacity:disabled?.45:1
+              }}>
+              {icon}
+              <div style={{display:'flex',flexDirection:'column',alignItems:'flex-start',lineHeight:1.1}}>
+                <span style={{fontSize:'9px',fontWeight:'700',letterSpacing:'.1em'}}>{label}</span>
+                <span style={{fontSize:'8px',opacity:.4}}>{cost}✦</span>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Keyboard */}
+        <div style={{width:'100%',maxWidth:'460px',display:'flex',flexDirection:'column',gap:'5px',paddingBottom:'8px',paddingTop:'4px'}}>
+          {KB.map((row,ri)=>(
+            <div key={ri} style={{display:'flex',justifyContent:'center',gap:'4px',flexWrap:'nowrap'}}>
+              {row.map(ch=>(
+                <button key={ch} onClick={()=>kbPress(ch)} className="kb-key"
+                  style={{width:'clamp(28px,7.5vw,36px)',height:'clamp(36px,9vw,44px)',fontSize:'clamp(11px,2.5vw,14px)'}}>
+                  {ch}
+                </button>
+              ))}
+              {ri===2&&(
+                <button onClick={kbBack} style={{width:'clamp(36px,9.5vw,44px)',height:'clamp(36px,9vw,44px)',borderRadius:'8px',background:'rgba(239,68,68,.12)',border:'1px solid rgba(239,68,68,.22)',color:'rgb(252,165,165)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',transition:'all .1s',flexShrink:0}} onMouseDown={e=>e.currentTarget.style.transform='scale(.86)'} onMouseUp={e=>e.currentTarget.style.transform='scale(1)'}>
+                  <Delete size={15}/>
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* Hint star animation */}
+  {animStar&&(
+    <div style={{
+      position:'fixed',zIndex:100,pointerEvents:'none',
+      left:animStar.sx,top:animStar.sy,
+      width:'12px',height:'12px',borderRadius:'50%',
+      background:'rgb(253,230,138)',
+      boxShadow:'0 0 20px 6px rgba(253,230,138,.7)',
+      '--tx':`${animStar.tx}px`,'--ty':`${animStar.ty}px`,
+      animation:'hintFly 1.7s cubic-bezier(.2,0,.2,1) forwards'
+    }}/>
+  )}
+
+  {/* WIN MODAL */}
+  {winModal&&(
+    <div style={{position:'fixed',inset:0,zIndex:50,background:'rgba(0,0,0,.95)',backdropFilter:'blur(20px)',display:'flex',alignItems:'center',justifyContent:'center',padding:'20px'}}>
+      <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'18px',maxWidth:'500px',width:'100%',textAlign:'center',animation:'fadeUp .5s ease-out'}}>
+        {/* Constellation mini-map */}
+        <div style={{position:'relative',width:'100%',maxWidth:'280px',height:'120px',margin:'0 auto'}}>
+          <svg style={{width:'100%',height:'100%'}}>
+            {constData.lines.map(([a,b],i)=>{
+              const pa=constData.stars[a],pb=constData.stars[b];
+              return(<line key={i} x1={`${pa.x}%`} y1={`${pa.y}%`} x2={`${pb.x}%`} y2={`${pb.y}%`}
+                stroke="rgba(165,180,252,.7)" strokeWidth="1.5" filter="url(#softglow)"/>);
+            })}
+            {constData.stars.map((s,i)=>(<circle key={i} cx={`${s.x}%`} cy={`${s.y}%`} r="4" fill="white" style={{filter:'drop-shadow(0 0 6px white)'}}/>))}
+          </svg>
+        </div>
+
+        <div>
+          <p style={{fontSize:'10px',letterSpacing:'.45em',color:'rgba(255,255,255,.2)',textTransform:'uppercase',marginBottom:'4px'}}>BAĞLANTI KURULDU</p>
+          <h2 className="f-cinzel" style={{fontSize:'clamp(18px,4vw,26px)',fontWeight:'700',letterSpacing:'.3em',color:'white',marginBottom:'2px'}}>{constData.name}</h2>
+          <p style={{fontSize:'11px',color:'rgba(255,255,255,.3)',letterSpacing:'.12em'}}>{constData.latin} — {level.theme}</p>
+        </div>
+
+        {/* Chain */}
+        <div style={{display:'flex',flexWrap:'wrap',gap:'5px',justifyContent:'center',alignItems:'center',padding:'0 10px'}}>
+          {[level.start,...level.chain,level.end].map((w,i,arr)=>(
+            <React.Fragment key={i}>
+              <span style={{fontSize:'9px',fontWeight:'700',fontFamily:'Space Mono',padding:'4px 10px',borderRadius:'8px',
+                background:i===0||i===arr.length-1?'rgba(120,60,0,.3)':'rgba(30,30,80,.35)',
+                border:`1px solid ${i===0||i===arr.length-1?'rgba(251,191,36,.25)':'rgba(99,102,241,.25)'}`,
+                color:i===0||i===arr.length-1?'rgb(253,224,134)':'rgb(199,210,254)'}}>
+                {w}
+              </span>
+              {i<arr.length-1&&<ChevronRight size={9} style={{color:'rgba(255,255,255,.15)',flexShrink:0}}/>}
+            </React.Fragment>
+          ))}
+        </div>
+
+        {/* Educational fact */}
+        <div className="glass-dark" style={{borderRadius:'16px',padding:'14px 16px',width:'100%',minHeight:'60px',display:'flex',flexDirection:'column',gap:'8px'}}>
+          <div style={{display:'flex',alignItems:'center',gap:'6px',justifyContent:'center',marginBottom:'2px'}}>
+            <BookOpen size={12} style={{color:'rgba(165,180,252,.6)'}}/>
+            <span style={{fontSize:'9px',letterSpacing:'.2em',color:'rgba(165,180,252,.5)',textTransform:'uppercase'}}>TAKIMYILDIZBİLGİSİ</span>
+          </div>
+          <p style={{fontSize:'12px',color:'rgba(255,255,255,.55)',lineHeight:1.65}}>{constData.fact}</p>
+          <p style={{fontSize:'11px',color:'rgba(255,255,255,.3)',lineHeight:1.55,borderTop:'1px solid rgba(255,255,255,.06)',paddingTop:'8px',fontStyle:'italic'}}>{constData.myth}</p>
+        </div>
+
+        {/* Claude explanation */}
+        <div className="glass-dark" style={{borderRadius:'14px',padding:'12px 14px',width:'100%',minHeight:'50px',display:'flex',alignItems:'center',justifyContent:'center'}}>
+          {explLoading
+            ?<div style={{display:'flex',alignItems:'center',gap:'8px',color:'rgba(255,255,255,.2)'}}>
+              <Loader2 size={13} style={{animation:'spinSlow 1s linear infinite'}}/><span style={{fontSize:'11px',letterSpacing:'.1em'}}>Kavramsal bağlantı hesaplanıyor...</span>
+            </div>
+            :<p style={{fontSize:'12px',color:'rgba(255,255,255,.5)',lineHeight:1.6,fontStyle:'italic'}}>{winExpl}</p>
+          }
+        </div>
+
+        <div style={{display:'flex',alignItems:'center',gap:'6px',color:'rgb(253,230,138)',fontSize:'11px',fontWeight:'700',letterSpacing:'.12em',background:'rgba(120,60,0,.2)',padding:'7px 16px',borderRadius:'20px',border:'1px solid rgba(251,191,36,.2)',animation:'ringPulse 2s ease-in-out infinite'}}>
+          <Sparkles size={12}/>+2 YILDIZ TOZU
+        </div>
+
+        <div style={{width:'1px',height:'30px',background:'linear-gradient(to bottom, rgba(255,255,255,.3), transparent)'}}/>
+        <button onClick={doNext}
+          style={{padding:'13px 36px',background:'white',color:'black',fontWeight:'700',letterSpacing:'.2em',fontSize:'12px',borderRadius:'40px',border:'none',cursor:'pointer',transition:'transform .15s',boxShadow:'0 0 25px rgba(255,255,255,.18)'}}
+          onMouseEnter={e=>e.target.style.transform='scale(1.04)'}
+          onMouseLeave={e=>e.target.style.transform='scale(1)'}>
+          DEVAM ET
+        </button>
+      </div>
+    </div>
+  )}
+
+  {/* Info modal — constellation info */}
+  {infoModal&&(
+    <div style={{position:'fixed',inset:0,zIndex:55,background:'rgba(0,0,0,.88)',backdropFilter:'blur(16px)',display:'flex',alignItems:'center',justifyContent:'center',padding:'20px'}}>
+      <div className="glass-dark anim-fade-up" style={{borderRadius:'24px',padding:'28px 24px',maxWidth:'380px',width:'100%',maxHeight:'80vh',overflowY:'auto'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'18px'}}>
+          <h3 className="f-cinzel" style={{fontSize:'16px',letterSpacing:'.25em',color:'white'}}>{constData.name}</h3>
+          <button onClick={()=>{play('click');setInfoModal(false);}} style={{background:'none',border:'none',color:'rgba(255,255,255,.3)',cursor:'pointer',padding:'4px'}}><X size={18}/></button>
+        </div>
+        <p style={{fontSize:'11px',color:'rgba(165,180,252,.6)',letterSpacing:'.1em',marginBottom:'12px',fontFamily:'Space Mono'}}>{constData.latin}</p>
+        <p style={{fontSize:'13px',color:'rgba(255,255,255,.65)',lineHeight:1.7,marginBottom:'14px'}}>{constData.fact}</p>
+        <p style={{fontSize:'12px',color:'rgba(255,255,255,.4)',lineHeight:1.65,borderTop:'1px solid rgba(255,255,255,.06)',paddingTop:'14px',fontStyle:'italic'}}>{constData.myth}</p>
+      </div>
+    </div>
+  )}
+
+  <ConfirmModal c={confirm} setC={setConfirm} play={play} onReset={doReset} onQuit={doQuit} onLogout={doLogout}/>
+</div>
+```
+
+);
+}
+
+// ───────────────────────────────────────────────
+function ConfirmModal({c,setC,play,onReset,onQuit,onLogout}){
+if(!c) return null;
+const cfgs={
+reset:{icon:<AlertTriangle style={{color:‘rgb(251,191,36)’,width:40,height:40}}/>,title:“SIFIRLA?”,body:“Tüm ilerleme ve yıldız tozları silinir.”,btn:“SIFIRLA”,bStyle:{background:‘rgb(217,119,6)’},action:onReset},
+quit:{icon:<Home style={{color:‘rgba(255,255,255,.7)’,width:40,height:40}}/>,title:“ÇIKIŞ?”,body:“İlerleme kaydedildi. Ana menüye dön.”,btn:“ÇIK”,bStyle:{background:‘white’,color:‘black’},action:onQuit},
+logout:{icon:<LogOut style={{color:‘rgb(248,113,113)’,width:40,height:40}}/>,title:“OTURUMU KAPAT?”,body:“Giriş ekranına dönülecek.”,btn:“KAPAT”,bStyle:{background:‘rgb(220,38,38)’},action:onLogout},
+};
+const cf=cfgs[c];
+return(
+<div style={{position:‘fixed’,inset:0,zIndex:70,background:‘rgba(0,0,0,.9)’,backdropFilter:‘blur(16px)’,display:‘flex’,alignItems:‘center’,justifyContent:‘center’,padding:‘20px’}}>
+<div className=“glass-dark anim-fade-up” style={{borderRadius:‘24px’,padding:‘32px 24px’,maxWidth:‘320px’,width:‘100%’,textAlign:‘center’}}>
+<div style={{display:‘flex’,flexDirection:‘column’,alignItems:‘center’,gap:‘16px’}}>
+{cf.icon}
+<div>
+<h3 className=“f-cinzel” style={{fontSize:‘18px’,letterSpacing:’.25em’,color:‘white’,marginBottom:‘6px’}}>{cf.title}</h3>
+<p style={{fontSize:‘13px’,color:‘rgba(255,255,255,.35)’}}>{cf.body}</p>
+</div>
+<div style={{display:‘flex’,gap:‘10px’,width:‘100%’}}>
+<button onClick={()=>{play(‘click’);setC(null);}} style={{flex:1,padding:‘12px’,borderRadius:‘12px’,background:‘transparent’,border:‘1px solid rgba(255,255,255,.1)’,color:‘rgba(255,255,255,.45)’,cursor:‘pointer’,fontSize:‘11px’,fontWeight:‘700’,letterSpacing:’.12em’,transition:‘background .15s’}} onMouseEnter={e=>e.currentTarget.style.background=‘rgba(255,255,255,.06)’} onMouseLeave={e=>e.currentTarget.style.background=’’}>İPTAL</button>
+<button onClick={()=>{play(‘click’);cf.action();}} style={{flex:1,padding:‘12px’,borderRadius:‘12px’,border:‘none’,color:‘white’,cursor:‘pointer’,fontSize:‘11px’,fontWeight:‘700’,letterSpacing:’.12em’,transition:‘opacity .15s’,…cf.bStyle}} onMouseEnter={e=>e.currentTarget.style.opacity=’.85’} onMouseLeave={e=>e.currentTarget.style.opacity=‘1’}>{cf.btn}</button>
+</div>
+</div>
+</div>
+</div>
+);
+}
+
+createRoot(document.getElementById(‘root’)).render(<App/>);
+</script>
+
+</body>
+</html>
